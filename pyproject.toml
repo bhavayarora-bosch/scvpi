@@ -1,10 +1,11 @@
 [project]
 name = "scvpi"
 version = "0.1.0"
-description = "Add your description here"
+description = "(System)Verilog VPI functions for SystemC"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "cocotb>=2.0.1",
+    "pytest>=9.0.2",
     "pyuvm>=4.0.1",
 ]

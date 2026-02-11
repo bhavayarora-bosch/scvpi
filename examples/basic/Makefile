@@ -1,5 +1,5 @@
 # ==============================================================================
-# SystemC + Cocotb Test Makefile
+# SystemC + cocotb Test Makefile
 # ==============================================================================
 
 SYSTEMC ?= /usr
@@ -20,7 +20,7 @@ SYSTEMC_LIB_LINUX64 = $(SYSTEMC)/lib-linux64
 SYSTEMC_LIB64       = $(SYSTEMC)/lib64
 
 # ------------------------------------------------------------------------------
-# Cocotb Configuration
+# cocotb Configuration
 # ------------------------------------------------------------------------------
 COCOTB_CMD         = $(shell command -v uv >/dev/null 2>&1 && echo "uv run cocotb-config" || echo "cocotb-config")
 COCOTB_PREFIX      = $(shell $(COCOTB_CMD) --prefix 2>/dev/null || echo "")
@@ -39,7 +39,7 @@ COCOTB_VPI_ICARUS    = $(COCOTB_LIB_DIR)/libcocotbvpi_icarus.vpl
 # Build Configurations
 # ------------------------------------------------------------------------------
 CXXFLAGS = $(BASE_CXXFLAGS)
-LDFLAGS  = -L$(SYSTEMC_LIB_LINUX64) $(BASE_LDFLAGS)
+LDFLAGS = -L$(SYSTEMC_LIB_LINUX64) -L$(SYSTEMC_LIB64) $(BASE_LDFLAGS)
 
 # Simulator-specific linker flags
 VERILATOR_LDFLAGS = -L$(SYSTEMC_LIB64)       $(BASE_LDFLAGS)
@@ -48,7 +48,7 @@ XCELIUM_LDFLAGS   = -L$(SYSTEMC_LIB64)       $(BASE_LDFLAGS)
 ICARUS_LDFLAGS    = -L$(SYSTEMC_LIB_LINUX64) $(BASE_LDFLAGS)
 
 # ------------------------------------------------------------------------------
-# Cocotb Runtime Environment
+# cocotb Runtime Environment
 # ------------------------------------------------------------------------------
 BASE_COCOTB_ENV = \
 	PYTHONPATH=.:$$PYTHONPATH \
@@ -172,7 +172,7 @@ show-config:
 	@echo "SYSTEMC_LIB_LINUX64: $(SYSTEMC_LIB_LINUX64)"
 	@echo "SYSTEMC_LIB64: $(SYSTEMC_LIB64)"
 	@echo ""
-	@echo "=== Cocotb Configuration ==="
+	@echo "=== cocotb Configuration ==="
 	@echo "COCOTB_PREFIX: $(COCOTB_PREFIX)"
 	@echo "COCOTB_LIBPYTHON: $(COCOTB_LIBPYTHON)"
 	@echo "COCOTB_LIBPYTHON_DIR: $(COCOTB_LIBPYTHON_DIR)"
