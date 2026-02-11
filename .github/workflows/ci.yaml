@@ -56,7 +56,7 @@ jobs:
         source .venv/bin/activate
         uv sync --locked --all-extras --dev
 
-        for ex in basic adder; do
+        for ex in basic adder TinyALU_SystemC; do
           make -C examples/$ex show-config
           make -C examples/$ex run-icarus
         done
