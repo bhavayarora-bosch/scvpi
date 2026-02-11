@@ -56,5 +56,7 @@ jobs:
         source .venv/bin/activate
         uv sync --locked --all-extras --dev
 
-        make -C examples/basic show-config
-        make -C examples/basic run-icarus
+        for ex in basic adder; do
+          make -C examples/$ex show-config
+          make -C examples/$ex run-icarus
+        done
