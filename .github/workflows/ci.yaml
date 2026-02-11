@@ -53,6 +53,5 @@ jobs:
 
         uv sync --locked --all-extras --dev
 
-        cd example
-        make show-config
-        make run-icarus
+        make -C examples/basic show-config
+        make -C examples/basic run-icarus

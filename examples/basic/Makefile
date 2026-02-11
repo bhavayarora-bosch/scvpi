@@ -5,44 +5,47 @@
 SYSTEMC ?= /usr
 CXX ?= g++
 
+# Repo root relative to this Makefile (examples/basic/)
+ROOT ?= ../..
+SCVPI_SRC := $(ROOT)/src
+
 # ------------------------------------------------------------------------------
 # Compiler and Linker Configuration
 # ------------------------------------------------------------------------------
-BASE_CXXFLAGS = -I$(SYSTEMC)/include -I. -I../src -export-dynamic
-BASE_LDFLAGS = -ldl -lsystemc
+BASE_CXXFLAGS = -I$(SYSTEMC)/include -I. -I$(SCVPI_SRC) -export-dynamic
+BASE_LDFLAGS  = -ldl -lsystemc
 
 # SystemC library paths
 SYSTEMC_LIB_LINUX64 = $(SYSTEMC)/lib-linux64
-SYSTEMC_LIB64 = $(SYSTEMC)/lib64
+SYSTEMC_LIB64       = $(SYSTEMC)/lib64
 
 # ------------------------------------------------------------------------------
 # Cocotb Configuration
 # ------------------------------------------------------------------------------
-COCOTB_CMD = $(shell command -v uv >/dev/null 2>&1 && echo "uv run cocotb-config" || echo "cocotb-config")
-COCOTB_PREFIX = $(shell $(COCOTB_CMD) --prefix 2>/dev/null || echo "")
-COCOTB_LIBPYTHON = $(shell $(COCOTB_CMD) --libpython 2>/dev/null || echo "")
+COCOTB_CMD         = $(shell command -v uv >/dev/null 2>&1 && echo "uv run cocotb-config" || echo "cocotb-config")
+COCOTB_PREFIX      = $(shell $(COCOTB_CMD) --prefix 2>/dev/null || echo "")
+COCOTB_LIBPYTHON   = $(shell $(COCOTB_CMD) --libpython 2>/dev/null || echo "")
 COCOTB_LIBPYTHON_DIR = $(dir $(COCOTB_LIBPYTHON))
-COCOTB_PYTHON_BIN = $(shell $(COCOTB_CMD) --python-bin 2>/dev/null || echo "python3")
-COCOTB_LIB_DIR = $(shell $(COCOTB_CMD) --lib-dir 2>/dev/null || echo "")
+COCOTB_PYTHON_BIN  = $(shell $(COCOTB_CMD) --python-bin 2>/dev/null || echo "python3")
+COCOTB_LIB_DIR     = $(shell $(COCOTB_CMD) --lib-dir 2>/dev/null || echo "")
 
 # VPI library paths
 COCOTB_VPI_VERILATOR = $(COCOTB_LIB_DIR)/libcocotbvpi_verilator.so
-COCOTB_VPI_QUESTA = $(COCOTB_LIB_DIR)/libcocotbvpi_modelsim.so
-COCOTB_VPI_XCELIUM = $(COCOTB_LIB_DIR)/libcocotbvpi_ius.so
-COCOTB_VPI_ICARUS = $(COCOTB_LIB_DIR)/libcocotbvpi_icarus.vpl
+COCOTB_VPI_QUESTA    = $(COCOTB_LIB_DIR)/libcocotbvpi_modelsim.so
+COCOTB_VPI_XCELIUM   = $(COCOTB_LIB_DIR)/libcocotbvpi_ius.so
+COCOTB_VPI_ICARUS    = $(COCOTB_LIB_DIR)/libcocotbvpi_icarus.vpl
 
 # ------------------------------------------------------------------------------
 # Build Configurations
 # ------------------------------------------------------------------------------
-# Default build
 CXXFLAGS = $(BASE_CXXFLAGS)
-LDFLAGS = -L$(SYSTEMC_LIB_LINUX64) $(BASE_LDFLAGS)
+LDFLAGS  = -L$(SYSTEMC_LIB_LINUX64) $(BASE_LDFLAGS)
 
 # Simulator-specific linker flags
-VERILATOR_LDFLAGS = -L$(SYSTEMC_LIB64) $(BASE_LDFLAGS)
-QUESTA_LDFLAGS = -L$(SYSTEMC_LIB_LINUX64) $(BASE_LDFLAGS)
-XCELIUM_LDFLAGS = -L$(SYSTEMC_LIB64) $(BASE_LDFLAGS)
-ICARUS_LDFLAGS = -L$(SYSTEMC_LIB_LINUX64) $(BASE_LDFLAGS)
+VERILATOR_LDFLAGS = -L$(SYSTEMC_LIB64)       $(BASE_LDFLAGS)
+QUESTA_LDFLAGS    = -L$(SYSTEMC_LIB_LINUX64) $(BASE_LDFLAGS)
+XCELIUM_LDFLAGS   = -L$(SYSTEMC_LIB64)       $(BASE_LDFLAGS)
+ICARUS_LDFLAGS    = -L$(SYSTEMC_LIB_LINUX64) $(BASE_LDFLAGS)
 
 # ------------------------------------------------------------------------------
 # Cocotb Runtime Environment
@@ -58,14 +61,13 @@ $(BASE_COCOTB_ENV) \
 endef
 
 VERILATOR_ENV = $(call MAKE_COCOTB_ENV,$(SYSTEMC_LIB64))
-QUESTA_ENV = $(call MAKE_COCOTB_ENV,$(SYSTEMC_LIB_LINUX64))
-XCELIUM_ENV = $(call MAKE_COCOTB_ENV,$(SYSTEMC_LIB64))
-ICARUS_ENV = $(call MAKE_COCOTB_ENV,$(SYSTEMC_LIB_LINUX64))
+QUESTA_ENV    = $(call MAKE_COCOTB_ENV,$(SYSTEMC_LIB_LINUX64))
+XCELIUM_ENV   = $(call MAKE_COCOTB_ENV,$(SYSTEMC_LIB64))
+ICARUS_ENV    = $(call MAKE_COCOTB_ENV,$(SYSTEMC_LIB_LINUX64))
 
 # ------------------------------------------------------------------------------
 # Helper Functions
 # ------------------------------------------------------------------------------
-# Function to check for test errors in output
 define check_test_errors
 	@if grep -qE "(ERROR|FAIL|Failed to load|AttributeError|Traceback)" $(1) | grep -vq "PASS="; then \
 		echo "Tests failed with errors"; \
@@ -77,12 +79,11 @@ endef
 # ------------------------------------------------------------------------------
 # Build Targets
 # ------------------------------------------------------------------------------
-# ------------------------------------------------------------------------------
 .PHONY: all
 all: test
 
-test: test.cpp ../src/scvpi.cpp
-	$(CXX) $(CXXFLAGS) ../src/scvpi.cpp test.cpp -o test $(LDFLAGS)
+test: test.cpp $(SCVPI_SRC)/scvpi.cpp
+	$(CXX) $(CXXFLAGS) $(SCVPI_SRC)/scvpi.cpp test.cpp -o test $(LDFLAGS)
 
 # Simulator-specific builds
 test-verilator test-questa test-xcelium test-icarus: test
@@ -112,19 +113,19 @@ debug: test
 
 .PHONY: verilator-debug questa-debug xcelium-debug icarus-debug
 verilator-debug: CXXFLAGS = $(BASE_CXXFLAGS) -DEN_DEBUG_VPI
-verilator-debug: LDFLAGS = $(VERILATOR_LDFLAGS)
+verilator-debug: LDFLAGS  = $(VERILATOR_LDFLAGS)
 verilator-debug: test
 
 questa-debug: CXXFLAGS = $(BASE_CXXFLAGS) -DEN_DEBUG_VPI
-questa-debug: LDFLAGS = $(QUESTA_LDFLAGS)
+questa-debug: LDFLAGS  = $(QUESTA_LDFLAGS)
 questa-debug: test
 
 xcelium-debug: CXXFLAGS = $(BASE_CXXFLAGS) -DEN_DEBUG_VPI
-xcelium-debug: LDFLAGS = $(XCELIUM_LDFLAGS)
+xcelium-debug: LDFLAGS  = $(XCELIUM_LDFLAGS)
 xcelium-debug: test
 
 icarus-debug: CXXFLAGS = $(BASE_CXXFLAGS) -DEN_DEBUG_VPI
-icarus-debug: LDFLAGS = $(ICARUS_LDFLAGS)
+icarus-debug: LDFLAGS  = $(ICARUS_LDFLAGS)
 icarus-debug: test
 
 # ------------------------------------------------------------------------------
@@ -134,7 +135,6 @@ icarus-debug: test
 run: test
 	./test
 
-# Template for simulator run targets
 define make_run_target
 .PHONY: run-$(1)
 run-$(1): test-$(1)
@@ -149,7 +149,6 @@ run-$(1)-debug: $(1)-debug
 	$(call check_test_errors,/tmp/cocotb_$(1)_debug.log)
 endef
 
-# Generate run targets for each simulator
 $(eval $(call make_run_target,verilator,Verilator,$(VERILATOR_ENV),+vpi=$(COCOTB_VPI_VERILATOR)))
 $(eval $(call make_run_target,questa,Questa,$(QUESTA_ENV),+vpi=$(COCOTB_VPI_QUESTA)))
 $(eval $(call make_run_target,xcelium,Xcelium,$(XCELIUM_ENV),+vpi=$(COCOTB_VPI_XCELIUM)))
