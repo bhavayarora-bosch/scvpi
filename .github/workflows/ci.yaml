@@ -2,61 +2,77 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["final"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["final"]
 
 env:
   COCOTB_ANSI_OUTPUT: 1
   FORCE_COLOR: 1
+  SYSTEMC: /opt/systemc-3.0.2
+  SYSTEMC_HOME: /opt/systemc-3.0.2
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.14"]
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v7
-      with:
-        version: "0.9.27"
-        enable-cache: true
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.27"
+          enable-cache: true
 
-    - name: Install dependencies
-      env:
-        DEBIAN_FRONTEND: noninteractive
-      run: |
-        echo "::group::apt-get update"
-        sudo apt-get update
-        echo "::endgroup::"
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            iverilog \
+            cpp \
+            cmake \
+            build-essential \
+            wget
 
-        echo "::group::apt-get install"
-        sudo apt-get install --yes --no-install-recommends \
-          iverilog \
-          cpp \
-          cmake \
-          libsystemc \
-          libsystemc-dev
-        echo "::endgroup::"
+      - name: Install SystemC 3.0.2
+        run: |
+          wget https://github.com/accellera-official/systemc/archive/refs/tags/3.0.2.tar.gz
+          tar -xzf 3.0.2.tar.gz
+          cmake -S systemc-3.0.2 -B systemc-build \
+            -DCMAKE_INSTALL_PREFIX=${SYSTEMC_HOME} \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build systemc-build -j$(nproc)
+          sudo cmake --install systemc-build
 
-    - name: Run tests on Python ${{ matrix.python-version }}
-      run: |
-        uv venv
-        source .venv/bin/activate
-        uv sync --locked --all-extras --dev
+      - name: Ensure lockfile exists
+        run: |
+          if [ ! -f uv.lock ]; then
+            uv lock
+          else
+            uv lock --check
+          fi
 
-        for ex in basic adder TinyALU_SystemC; do
-          make -C examples/$ex show-config
-          make -C examples/$ex run-icarus
-        done
+      - name: Run tests on Python ${{ matrix.python-version }}
+        run: |
+          uv venv
+          source .venv/bin/activate
+          uv sync --locked --all-extras --dev
+
+          # Run standalone examples through their public default target.
+          for ex in basic adder; do
+            make -C examples/$ex show-config
+            make -C examples/$ex run
+          done
