@@ -23,18 +23,32 @@ The TLM model supports two blocking-transport timing styles:
 
 - SystemC 3.0.2
 - Python 3.11 or newer
+- uv
 - cocotb 2.x
 - PyUVM
-- Icarus Verilog
+- Icarus Verilog (required only for the HDL RTL model)
 
 ---
 
 ## Running the Example
 
+From the repository root, install the Python dependencies:
+
+```bash
+uv sync
+source .venv/bin/activate
+```
+
 If SystemC is not installed under `/usr`, set:
 
 ```bash
 export SYSTEMC=/path/to/systemc
+```
+
+Change to the example directory:
+
+```bash
+cd examples/tinyalu_reg
 ```
 
 Run one of the supported models with a fixed random seed:
