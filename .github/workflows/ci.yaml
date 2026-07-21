@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["final"]
   pull_request:
-    branches: ["main"]
+    branches: ["final"]
 
 env:
   COCOTB_ANSI_OUTPUT: 1
@@ -72,7 +72,7 @@ jobs:
           uv sync --locked --all-extras --dev
 
           # Run standalone examples through their public default target.
-          for ex in basic adder; do
+          for ex in basic adder TinyALU_SystemC; do
             make -C examples/$ex show-config
             make -C examples/$ex run
           done
