@@ -71,12 +71,14 @@ Additional signal types can be added as needed.
 - SystemC 3.0.2
 - CMake 3.15 or newer
 - Python 3.11 or newer
+- uv
 
-Python dependencies (including **cocotb** and **PyUVM**) are installed
-using:
+Install the Python dependencies (including **cocotb 2.x** and
+**PyUVM**) using:
 
 ```bash
 uv sync
+source .venv/bin/activate
 ```
 
 For the provided HDL example (`examples/tinyalu_reg`), install Icarus
@@ -115,7 +117,9 @@ export SYSTEMC=/path/to/systemc
 
 git clone https://github.com/fvutils/scvpi.git
 cd scvpi
+
 uv sync
+source .venv/bin/activate
 ```
 
 Run the examples:
