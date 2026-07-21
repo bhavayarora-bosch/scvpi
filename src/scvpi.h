@@ -1,8 +1,11 @@
 /*
  * scvpi.h
  *
- *  Created on: Nov 13, 2020
- *      Author: mballance
+ * Originally created on: Nov 13, 2020
+ * Original author: mballance
+ *
+ * Modified to:
+ *  - expose SCVPI lifecycle hooks for TLM bridge registration
  */
 
 #pragma once
@@ -13,6 +16,7 @@
 #define SC_INCLUDE_DYNAMIC_PROCESSES
 #endif
 #include <systemc>
+#include <cstdint>
 
 namespace scvpi {
 
@@ -48,6 +52,38 @@ private:
 	static ScVpi		m_inst;
 
 };
-
-
 }
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*
+ * Generic byte-oriented transport API.
+ *
+ * is_read:
+ *   0 = write
+ *   1 = read
+ *
+ * data/data_len:
+ *   For write: input payload bytes
+ *   For read:  output buffer filled by transport
+ *
+ * byte_en/byte_en_len:
+ *   Optional byte enable array. May be nullptr / 0.
+ *
+ * rsp_status_out:
+ *   Returns tlm response status as integer if non-null.
+ */
+int scvpi_tlm_transport_bytes(const char* endpoint,
+                              int is_read,
+                              uint64_t addr,
+                              unsigned char* data,
+                              uint32_t data_len,
+                              const unsigned char* byte_en,
+                              uint32_t byte_en_len,
+                              int* rsp_status_out);
+
+#ifdef __cplusplus
+}
+#endif
