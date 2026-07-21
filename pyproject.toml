@@ -7,5 +7,5 @@ requires-python = ">=3.12"
 dependencies = [
     "cocotb>=2.0.1",
     "pytest>=9.0.2",
-    "pyuvm>=4.0.1",
+    "pyuvm @ git+https://github.com/pyuvm/pyuvm.git",
 ]
