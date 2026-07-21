@@ -76,3 +76,25 @@ jobs:
             make -C examples/$ex show-config
             make -C examples/$ex run
           done
+
+          # Run the HDL RTL implementation.
+          make -C examples/tinyalu_reg show-config MODEL=hdl
+          make -C examples/tinyalu_reg run-hdl
+
+          # Run the SystemC RTL implementation.
+          make -C examples/tinyalu_reg show-config MODEL=rtl
+          make -C examples/tinyalu_reg run-sc-rtl
+
+          # Run the SystemC TLM implementation with annotated delay.
+          make -C examples/tinyalu_reg show-config \
+            MODEL=tlm \
+            TLM_TARGET_CONSUMES_TIME=0
+          make -C examples/tinyalu_reg run-sc-tlm
+
+          # Run the SystemC TLM implementation with target-side waits
+          # from a clean build so the CMake option is reapplied.
+          make -C examples/tinyalu_reg clean
+          make -C examples/tinyalu_reg show-config \
+            MODEL=tlm \
+            TLM_TARGET_CONSUMES_TIME=1
+          make -C examples/tinyalu_reg run-sc-tlm-target-wait
