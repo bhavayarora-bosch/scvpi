@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: ["final"]
+    branches: ["main"]
   pull_request:
-    branches: ["final"]
+    branches: ["main"]
 
 env:
   COCOTB_ANSI_OUTPUT: 1
