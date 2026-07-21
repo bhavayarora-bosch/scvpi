@@ -102,6 +102,7 @@ endif
 _run-model: build
 ifeq ($(SIM_MODE),hdl)
 	@$(MAKE) -C model_hdl \
+		PYTHON="$(PYTHON)" \
 		SIM=$(SIM_KIND) \
 		TOPLEVEL=$(TOPLEVEL) \
 		TOPLEVEL_LANG=$(TOPLEVEL_LANG) \
@@ -113,25 +114,25 @@ else
 	@echo "Running tinyalu_reg ($(MODEL))..."
 	@rm -f $(RESULTS_FILE)
 	@env \
-		PATH=$$(dirname $(PYTHON)):$$PATH \
+		PATH="$$(dirname "$(PYTHON)"):$$PATH" \
 		PYTHONHOME= \
-		PYGPI_PYTHON_BIN=$(PYTHON) \
+		PYGPI_PYTHON_BIN="$(PYTHON)" \
 		COCOTB_TEST_MODULES=tests.testbench \
-		COCOTB_RESULTS_FILE=$(RESULTS_FILE) \
-		COCOTB_RANDOM_SEED=$(RANDOM_SEED) \
-		$(if $(TESTCASE),COCOTB_TESTCASE=$(TESTCASE),) \
-		TOPLEVEL=$(TOPLEVEL) \
-		TOPLEVEL_LANG=$(TOPLEVEL_LANG) \
-		BUS_BACKEND=$(BUS_BACKEND) \
-		TLM_TARGET_CONSUMES_TIME=$(TLM_TARGET_CONSUMES_TIME) \
-		SCVPI_LOG=$(SCVPI_LOG) \
-		SC_TRACE=$(TRACE) \
-		SC_TRACE_FILE=$(TRACE_DIR)/$(MODEL) \
-		TLM_TRACE=$(TRACE) \
-		PYTHONPATH=$(CURDIR)/tests:$(CURDIR):$$PYTHONPATH \
-		LD_LIBRARY_PATH=$(LD_PATH_VALUE) \
-		$(if $(GPI_EXTRA_VALUE),GPI_EXTRA=$(GPI_EXTRA_VALUE),) \
-		./$(SIM_EXE) +vpi=$(VPI_SO) $(PLUSARGS)
+		COCOTB_RESULTS_FILE="$(RESULTS_FILE)" \
+		COCOTB_RANDOM_SEED="$(RANDOM_SEED)" \
+		$(if $(TESTCASE),COCOTB_TESTCASE="$(TESTCASE)",) \
+		TOPLEVEL="$(TOPLEVEL)" \
+		TOPLEVEL_LANG="$(TOPLEVEL_LANG)" \
+		BUS_BACKEND="$(BUS_BACKEND)" \
+		TLM_TARGET_CONSUMES_TIME="$(TLM_TARGET_CONSUMES_TIME)" \
+		SCVPI_LOG="$(SCVPI_LOG)" \
+		SC_TRACE="$(TRACE)" \
+		SC_TRACE_FILE="$(TRACE_DIR)/$(MODEL)" \
+		TLM_TRACE="$(TRACE)" \
+		PYTHONPATH="$(CURDIR)/tests:$(CURDIR):$$PYTHONPATH" \
+		LD_LIBRARY_PATH="$(LD_PATH_VALUE)" \
+		$(if $(GPI_EXTRA_VALUE),GPI_EXTRA="$(GPI_EXTRA_VALUE)",) \
+		"./$(SIM_EXE)" +vpi="$(VPI_SO)" $(PLUSARGS)
 	@$(PYTHON) $(RESULTS_CHECKER) $(RESULTS_FILE)
 endif
 
@@ -209,4 +210,4 @@ help:
 .PHONY: clean
 clean:
 	rm -rf build_hdl build_rtl build_tlm traces results*.xml sim_build __pycache__ tests/__pycache__
-	$(MAKE) -C model_hdl clean || true
+	$(MAKE) -C model_hdl clean PYTHON="$(PYTHON)" || true
