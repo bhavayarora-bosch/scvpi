@@ -5,9 +5,11 @@
  * Original author: mballance
  *
  * Modified to:
- *  - provide a VPI-compatible handle registry for SystemC objects (hierarchy discovery + lookup)
- *  - implement read/write access for common sc_signal<T> types used by cocotb/PyUVM
- *  - add optional SCVPI_LOG tracing for put/get operations (disabled by default)
+ *  - provide a VPI-compatible handle registry for SystemC objects
+ *  - improve hierarchy discovery and object lookup
+ *  - extend support for additional sc_signal<T> types
+ *  - improve callback and VPI handle management
+ *  - add optional SCVPI_LOG transaction tracing (disabled by default)
  */
 
 #pragma once
@@ -20,6 +22,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cmath>
+#include <algorithm>
 
 #include <map>
 #include <memory>
@@ -58,14 +61,17 @@ using namespace scvpi;
 #define DEBUG(fmt, ...)
 #endif
 
-// Enable logging when SCVPI_LOG is non-zero (default: off)
-static bool g_scvpi_log = []() {
-    const char* e = std::getenv("SCVPI_LOG");
-    return (e && std::atoi(e) != 0);
-}();
+// Enable transaction logging when SCVPI_LOG is non-zero (default: off)
+static bool scvpi_log_enabled() {
+    static const bool enabled = []() {
+        const char* e = std::getenv("SCVPI_LOG");
+        return e && std::atoi(e) != 0;
+    }();
+    return enabled;
+}
 
 #define SCLOG(fmt, ...) do { \
-    if (g_scvpi_log) { \
+    if (scvpi_log_enabled()) { \
         const double sec = sc_core::sc_time_stamp().to_seconds(); \
         const long double ns_ld = static_cast<long double>(sec) * 1.0e9L; \
         const unsigned long long ns = (unsigned long long)std::floor(ns_ld + 0.5L); \
@@ -80,8 +86,12 @@ enum SignalKind {
     SigInt32,
     SigInt4,
     SigUInt3,
+    SigUInt4,
+    SigUInt5,
     SigUInt8,
-    SigUInt16
+    SigUInt9,
+    SigUInt16,
+    SigUInt32
 };
 
 struct HandleRec {
@@ -109,8 +119,7 @@ struct CbRec {
 static std::map<std::string, sc_core::sc_object*> g_name2obj;
 static std::unordered_map<vpiHandle, std::unique_ptr<HandleRec>> g_handles;
 static std::unordered_map<vpiHandle, std::unique_ptr<IterRec>>   g_iters;
-
-static std::unordered_map<vpiHandle, std::unique_ptr<CbRec>> g_cbs;
+static std::unordered_map<vpiHandle, std::unique_ptr<CbRec>>     g_cbs;
 static std::vector<vpiHandle> g_start_cbs;
 static std::vector<vpiHandle> g_end_cbs;
 
@@ -124,12 +133,17 @@ static SignalKind classify(sc_core::sc_object *obj, int &width_out) {
     width_out = 1;
     if (!obj) return SigUnknown;
 
-    if (dynamic_cast<sc_core::sc_signal<bool>*>(obj))              { width_out = 1;  return SigBool;  }
-    if (dynamic_cast<sc_core::sc_signal<int>*>(obj))               { width_out = 32; return SigInt32; }
-    if (dynamic_cast<sc_core::sc_signal<sc_dt::sc_int<4>>*>(obj))  { width_out = 4;  return SigInt4;  }
-    if (dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<3>>*>(obj)) { width_out = 3;  return SigUInt3; }
-    if (dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<8>>*>(obj)) { width_out = 8;  return SigUInt8; }
-    if (dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<16>>*>(obj)){ width_out = 16; return SigUInt16;}
+    if (dynamic_cast<sc_core::sc_signal<bool>*>(obj))               { width_out = 1;  return SigBool;   }
+    if (dynamic_cast<sc_core::sc_signal<int>*>(obj))                { width_out = 32; return SigInt32;  }
+    if (dynamic_cast<sc_core::sc_signal<sc_dt::sc_int<4>>*>(obj))   { width_out = 4;  return SigInt4;   }
+    if (dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<3>>*>(obj))  { width_out = 3;  return SigUInt3;  }
+    if (dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<4>>*>(obj))  { width_out = 4;  return SigUInt4;  }
+    if (dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<5>>*>(obj))  { width_out = 5;  return SigUInt5;  }
+    if (dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<8>>*>(obj))  { width_out = 8;  return SigUInt8;  }
+    if (dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<9>>*>(obj))  { width_out = 9;  return SigUInt9;  }
+    if (dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<16>>*>(obj)) { width_out = 16; return SigUInt16; }
+    if (dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<32>>*>(obj)) { width_out = 32; return SigUInt32; }
+
     return SigUnknown;
 }
 
@@ -214,7 +228,10 @@ static void collect_children(PLI_INT32 type, const std::string& parent_fq, std::
         if (type == vpiIntegerVar) {
             int w = 1;
             SignalKind k = classify(o, w);
-            if (k == SigInt32 || k == SigInt4 || k == SigUInt3 || k == SigUInt8 || k == SigUInt16) {
+            if (k == SigInt32 || k == SigInt4 ||
+                k == SigUInt3 || k == SigUInt4 || k == SigUInt5 ||
+                k == SigUInt8 || k == SigUInt9 || k == SigUInt16 ||
+                k == SigUInt32) {
                 out.push_back(make_handle(name, vpiIntegerVar));
                 continue;
             }
@@ -277,11 +294,23 @@ static void start_driver_if_needed() {
                 case SigUInt3:
                     static_cast<sc_core::sc_signal<sc_dt::sc_uint<3>>*>(o)->write(static_cast<unsigned int>(ival));
                     break;
+                case SigUInt4:
+                    static_cast<sc_core::sc_signal<sc_dt::sc_uint<4>>*>(o)->write(static_cast<unsigned int>(ival));
+                    break;
+                case SigUInt5:
+                    static_cast<sc_core::sc_signal<sc_dt::sc_uint<5>>*>(o)->write(static_cast<unsigned int>(ival));
+                    break;
                 case SigUInt8:
                     static_cast<sc_core::sc_signal<sc_dt::sc_uint<8>>*>(o)->write(static_cast<unsigned int>(ival));
                     break;
+                case SigUInt9:
+                    static_cast<sc_core::sc_signal<sc_dt::sc_uint<9>>*>(o)->write(static_cast<unsigned int>(ival));
+                    break;
                 case SigUInt16:
                     static_cast<sc_core::sc_signal<sc_dt::sc_uint<16>>*>(o)->write(static_cast<unsigned int>(ival));
+                    break;
+                case SigUInt32:
+                    static_cast<sc_core::sc_signal<sc_dt::sc_uint<32>>*>(o)->write(static_cast<unsigned int>(ival));
                     break;
                 default:
                     break;
@@ -403,16 +432,24 @@ vpiHandle vpi_register_cb(p_cb_data data) {
         auto *s_int  = dynamic_cast<sc_core::sc_signal<int>*>(o);
         auto *s_i4   = dynamic_cast<sc_core::sc_signal<sc_dt::sc_int<4>>*>(o);
         auto *s_u3   = dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<3>>*>(o);
+        auto *s_u4   = dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<4>>*>(o);
+        auto *s_u5   = dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<5>>*>(o);
         auto *s_u8   = dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<8>>*>(o);
+        auto *s_u9   = dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<9>>*>(o);
         auto *s_u16  = dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<16>>*>(o);
+        auto *s_u32  = dynamic_cast<sc_core::sc_signal<sc_dt::sc_uint<32>>*>(o);
 
         const sc_core::sc_event *ev = nullptr;
         if (s_bool)      ev = &s_bool->value_changed_event();
         else if (s_int)  ev = &s_int->value_changed_event();
         else if (s_i4)   ev = &s_i4->value_changed_event();
         else if (s_u3)   ev = &s_u3->value_changed_event();
+        else if (s_u4)   ev = &s_u4->value_changed_event();
+        else if (s_u5)   ev = &s_u5->value_changed_event();
         else if (s_u8)   ev = &s_u8->value_changed_event();
+        else if (s_u9)   ev = &s_u9->value_changed_event();
         else if (s_u16)  ev = &s_u16->value_changed_event();
+        else if (s_u32)  ev = &s_u32->value_changed_event();
 
         if (!ev) {
             DEBUG_LEAVE("vpi_register_cb (cbValueChange unsupported)");
@@ -446,7 +483,16 @@ vpiHandle vpi_register_cb(p_cb_data data) {
 
 PLI_INT32 vpi_remove_cb(vpiHandle h) {
     DEBUG_ENTER("vpi_remove_cb");
+
     g_cbs.erase(h);
+
+    auto erase_from_vec = [h](std::vector<vpiHandle> &v) {
+        v.erase(std::remove(v.begin(), v.end(), h), v.end());
+    };
+
+    erase_from_vec(g_start_cbs);
+    erase_from_vec(g_end_cbs);
+
     DEBUG_LEAVE("vpi_remove_cb");
     return 0;
 }
@@ -457,6 +503,7 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
     if (!name) return nullptr;
 
     const std::string fq = fq_from_scope_and_name(scope, reinterpret_cast<const char*>(name));
+
     auto itO = g_name2obj.find(fq);
     if (itO == g_name2obj.end()) return nullptr;
 
@@ -468,11 +515,14 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8 *name, vpiHandle scope) {
     } else {
         int w = 1;
         SignalKind k = classify(obj, w);
-        if (k == SigBool) t = vpiNet;
-        else if (k != SigUnknown) t = vpiIntegerVar;
+        if (k == SigBool) {
+            t = vpiNet;
+        } else if (k != SigUnknown) {
+            t = vpiIntegerVar;
+        }
     }
 
-    return make_handle(fq, t);
+    return (t != 0) ? make_handle(fq, t) : nullptr;
 }
 
 vpiHandle vpi_handle_by_index(vpiHandle /*object*/, PLI_INT32 /*index*/) { return nullptr; }
@@ -492,8 +542,16 @@ vpiHandle vpi_handle(PLI_INT32 type, vpiHandle refHandle) {
         auto itO = g_name2obj.find(parent);
         if (itO == g_name2obj.end()) return nullptr;
 
-        PLI_INT32 t = dynamic_cast<sc_core::sc_module*>(itO->second) ? vpiModule : vpiNet;
-        return make_handle(parent, t);
+        PLI_INT32 t = 0;
+        if (dynamic_cast<sc_core::sc_module*>(itO->second)) {
+            t = vpiModule;
+        } else {
+            int w = 1;
+            SignalKind k = classify(itO->second, w);
+            if (k == SigBool) t = vpiNet;
+            else if (k != SigUnknown) t = vpiIntegerVar;
+        }
+        return (t != 0) ? make_handle(parent, t) : nullptr;
     }
 
     if (type == vpiModule) {
@@ -549,6 +607,7 @@ vpiHandle vpi_iterate(PLI_INT32 type, vpiHandle refHandle) {
 
     auto itp = std::make_unique<IterRec>();
     collect_children(type, parent, itp->elems);
+
     if (itp->elems.empty()) return nullptr;
 
     vpiHandle h = reinterpret_cast<vpiHandle>(itp.get());
@@ -601,12 +660,24 @@ PLI_BYTE8 *vpi_get_str(PLI_INT32 property, vpiHandle object) {
     auto itH = g_handles.find(object);
     if (itH == g_handles.end()) return nullptr;
 
-    const char *s = itH->second->fqname.c_str();
+    static thread_local std::string name_buf;
 
     switch (property) {
-    case vpiName:
     case vpiFullName:
-        return (PLI_BYTE8*)const_cast<char*>(s);
+        name_buf = itH->second->fqname;
+        return (PLI_BYTE8*)const_cast<char*>(name_buf.c_str());
+
+    case vpiName: {
+        const std::string &fq = itH->second->fqname;
+        auto pos = fq.rfind('.');
+        if (pos == std::string::npos) {
+            name_buf = fq;
+        } else {
+            name_buf = fq.substr(pos + 1);
+        }
+        return (PLI_BYTE8*)const_cast<char*>(name_buf.c_str());
+    }
+
     default:
         return nullptr;
     }
@@ -662,12 +733,28 @@ void vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
             ival = static_cast<int>(static_cast<sc_core::sc_signal<sc_dt::sc_uint<3>>*>(o)->read().to_uint());
             have_val = true;
             break;
+        case SigUInt4:
+            ival = static_cast<int>(static_cast<sc_core::sc_signal<sc_dt::sc_uint<4>>*>(o)->read().to_uint());
+            have_val = true;
+            break;
+        case SigUInt5:
+            ival = static_cast<int>(static_cast<sc_core::sc_signal<sc_dt::sc_uint<5>>*>(o)->read().to_uint());
+            have_val = true;
+            break;
         case SigUInt8:
             ival = static_cast<int>(static_cast<sc_core::sc_signal<sc_dt::sc_uint<8>>*>(o)->read().to_uint());
             have_val = true;
             break;
+        case SigUInt9:
+            ival = static_cast<int>(static_cast<sc_core::sc_signal<sc_dt::sc_uint<9>>*>(o)->read().to_uint());
+            have_val = true;
+            break;
         case SigUInt16:
             ival = static_cast<int>(static_cast<sc_core::sc_signal<sc_dt::sc_uint<16>>*>(o)->read().to_uint());
+            have_val = true;
+            break;
+        case SigUInt32:
+            ival = static_cast<int>(static_cast<sc_core::sc_signal<sc_dt::sc_uint<32>>*>(o)->read().to_uint());
             have_val = true;
             break;
         default:
@@ -781,7 +868,6 @@ PLI_INT32 vpi_chk_error(p_vpi_error_info err) {
 }
 
 PLI_INT32 vpi_free_object(vpiHandle /*object*/) { return 1; }
-
 PLI_INT32 vpi_release_handle(vpiHandle /*object*/) { return -1; }
 
 PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info info_p) {
