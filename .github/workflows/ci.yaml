@@ -69,7 +69,7 @@ jobs:
         run: |
           uv venv --python "${{ matrix.python-version }}"
           source .venv/bin/activate
-          uv sync --locked --all-extras --dev
+          uv sync --python "${{ matrix.python-version }}" --locked --all-extras --dev
 
           # Run standalone examples through their public default target.
           for ex in basic adder TinyALU_SystemC; do
