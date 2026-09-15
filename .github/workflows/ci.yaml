@@ -60,7 +60,7 @@ jobs:
       - name: Ensure lockfile exists
         run: |
           if [ ! -f uv.lock ]; then
-            uv lock
+            uv lock --python "${{ matrix.python-version }}"
           else
             uv lock --check
           fi
