@@ -39,6 +39,7 @@ VPI_SO := $(shell $(COCOTB_CMD) --lib-name-path vpi icarus 2>/dev/null)
 
 COCOTB_LIBPYTHON := $(shell $(COCOTB_CMD) --libpython 2>/dev/null)
 COCOTB_LIBPYTHON_DIR := $(dir $(COCOTB_LIBPYTHON))
+COCOTB_PYGPI_ENTRY := $(shell $(COCOTB_CMD) --pygpi-entry-point 2>/dev/null)
 
 RESULTS_FILE := $(CURDIR)/results_$(MODEL).xml
 RESULTS_CHECKER := $(CURDIR)/../../tools/check_cocotb_results.py
@@ -117,6 +118,7 @@ else
 		PATH="$$(dirname "$(PYTHON)"):$$PATH" \
 		PYTHONHOME= \
 		PYGPI_PYTHON_BIN="$(PYTHON)" \
+		GPI_USERS="$(COCOTB_LIBPYTHON);$(COCOTB_PYGPI_ENTRY)" \
 		COCOTB_TEST_MODULES=tests.testbench \
 		COCOTB_RESULTS_FILE="$(RESULTS_FILE)" \
 		COCOTB_RANDOM_SEED="$(RANDOM_SEED)" \
