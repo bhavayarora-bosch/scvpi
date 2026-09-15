@@ -35,7 +35,7 @@ SIM_EXE := $(BUILD_DIR)/TINYALU_REG_SC
 
 COCOTB_CMD := $(PYTHON) -m cocotb_tools.config
 COCOTB_LIB_DIR := $(shell $(COCOTB_CMD) --lib-dir 2>/dev/null)
-VPI_SO := $(COCOTB_LIB_DIR)/libcocotbvpi_icarus.vpl
+VPI_SO := $(shell $(COCOTB_CMD) --lib-name-path vpi icarus 2>/dev/null)
 
 COCOTB_LIBPYTHON := $(shell $(COCOTB_CMD) --libpython 2>/dev/null)
 COCOTB_LIBPYTHON_DIR := $(dir $(COCOTB_LIBPYTHON))

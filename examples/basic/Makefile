@@ -35,10 +35,10 @@ COCOTB_PYTHON_BIN    = $(shell $(COCOTB_CMD) --python-bin 2>/dev/null || echo "p
 COCOTB_LIB_DIR       = $(shell $(COCOTB_CMD) --lib-dir 2>/dev/null || echo "")
 
 # VPI library paths
-COCOTB_VPI_VERILATOR = $(COCOTB_LIB_DIR)/libcocotbvpi_verilator.so
-COCOTB_VPI_QUESTA    = $(COCOTB_LIB_DIR)/libcocotbvpi_modelsim.so
-COCOTB_VPI_XCELIUM   = $(COCOTB_LIB_DIR)/libcocotbvpi_ius.so
-COCOTB_VPI_ICARUS    = $(COCOTB_LIB_DIR)/libcocotbvpi_icarus.vpl
+COCOTB_VPI_VERILATOR = $(shell $(COCOTB_CMD) --lib-name-path vpi verilator 2>/dev/null || echo "")
+COCOTB_VPI_QUESTA    = $(shell $(COCOTB_CMD) --lib-name-path vpi questa 2>/dev/null || echo "")
+COCOTB_VPI_XCELIUM   = $(shell $(COCOTB_CMD) --lib-name-path vpi xcelium 2>/dev/null || echo "")
+COCOTB_VPI_ICARUS    = $(shell $(COCOTB_CMD) --lib-name-path vpi icarus 2>/dev/null || echo "")
 
 # ------------------------------------------------------------------------------
 # Build Configurations

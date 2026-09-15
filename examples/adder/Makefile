@@ -23,7 +23,7 @@ COCOTB_LIBPYTHON     = $(shell $(COCOTB_CMD) --libpython 2>/dev/null || echo "")
 COCOTB_LIBPYTHON_DIR = $(dir $(COCOTB_LIBPYTHON))
 COCOTB_PYTHON_BIN    = $(shell $(COCOTB_CMD) --python-bin 2>/dev/null || echo "python3")
 COCOTB_LIB_DIR       = $(shell $(COCOTB_CMD) --lib-dir 2>/dev/null || echo "")
-COCOTB_VPI_ICARUS    = $(COCOTB_LIB_DIR)/libcocotbvpi_icarus.vpl
+COCOTB_VPI_ICARUS    = $(shell $(COCOTB_CMD) --lib-name-path vpi icarus 2>/dev/null || echo "")
 
 RESULTS_FILE    := $(CURDIR)/results.xml
 RESULTS_CHECKER := $(CURDIR)/../../tools/check_cocotb_results.py
