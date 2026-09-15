@@ -212,4 +212,4 @@ help:
 .PHONY: clean
 clean:
 	rm -rf build_hdl build_rtl build_tlm traces results*.xml sim_build __pycache__ tests/__pycache__
-	$(MAKE) -C model_hdl clean PYTHON="$(PYTHON)" || true
+	$(MAKE) -C model_hdl clean PYTHON="$(PYTHON)" SIM=icarus || true

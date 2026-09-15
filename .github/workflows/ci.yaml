@@ -67,7 +67,7 @@ jobs:
 
       - name: Run tests on Python ${{ matrix.python-version }}
         run: |
-          uv venv
+          uv venv --python "${{ matrix.python-version }}"
           source .venv/bin/activate
           uv sync --locked --all-extras --dev
 
